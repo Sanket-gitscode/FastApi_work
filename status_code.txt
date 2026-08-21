@@ -1,0 +1,31 @@
+# ==========================================
+# HTTP STATUS CODES REFERENCE GUIDE
+# ==========================================
+
+# --- 1xx: Informational ---
+# 100: Continue - Server received headers, send body
+# 101: Switching Protocols - Upgrading connection (e.g., WebSockets)
+
+# --- 2xx: Success ---
+# 200: OK - Request succeeded
+# 201: Created - Resource successfully created (e.g., POST request)
+# 204: No Content - Request processed, no content returned (e.g., DELETE)
+
+# --- 3xx: Redirection ---
+# 301: Moved Permanently - Resource has a new permanent URL
+# 302: Found (Temporary Redirect) - Resource temporarily at a different URL
+# 304: Not Modified - Cached version can be used
+
+# --- 4xx: Client Error ---
+# 400: Bad Request - Malformed syntax or client error
+# 401: Unauthorized - Authentication is required
+# 403: Forbidden - Server refuses authorization (lack of permissions)
+# 404: Not Found - Requested resource does not exist
+# 405: Method Not Allowed - HTTP method not supported for this resource
+# 429: Too Many Requests - Rate limit exceeded
+
+# --- 5xx: Server Error ---
+# 500: Internal Server Error - Generic server-side error
+# 502: Bad Gateway - Invalid response from an upstream server
+# 503: Service Unavailable - Server overloaded or down for maintenance
+# 504: Gateway Timeout - Upstream server took too long to respond

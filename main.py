@@ -26,3 +26,8 @@ def create_user(user : User):
         "message" :  "User created successfully",
         "user" : user
     }
+
+
+@app.get("/search")
+def search(name: str):
+    return {"message": f"Searching for {name}"}

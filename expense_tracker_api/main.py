@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel , Field
+from pydantic import BaseModel, Field
 
 from data import expenses
 
@@ -7,17 +7,39 @@ from data import expenses
 app = FastAPI()
 
 
-class Expense(BaseModel):
-    title: str    = Field(min_length= 3)
-    amount: float = Field(gt = 0)
-    category: str = Field(min_length= 3)
+# -------------------------
+# Pydantic Models
+# -------------------------
 
+# Data that the client sends to create/update an expense
+class ExpenseCreate(BaseModel):
+    title: str = Field(min_length=3)
+    amount: float = Field(gt=0)
+    category: str = Field(min_length=3)
+
+
+# Data that our API sends back to the client
+class ExpenseResponse(BaseModel):
+    id: int
+    title: str
+    amount: float
+    category: str
+
+
+# -------------------------
+# Home
+# -------------------------
 
 @app.get("/")
 def home():
     return {"message": "Expense Tracker API is running!"}
 
-@app.get("/expenses")
+
+# -------------------------
+# Get All Expenses
+# -------------------------
+
+@app.get("/expenses", response_model=list[ExpenseResponse])
 def get_expenses(
     category: str | None = None,
     min_amount: float | None = None,
@@ -49,8 +71,13 @@ def get_expenses(
     return filtered_expenses
 
 
-@app.post("/expenses")
-def create_expense(expense: Expense):
+# -------------------------
+# Create Expense
+# -------------------------
+
+@app.post("/expenses", response_model=ExpenseResponse)
+def create_expense(expense: ExpenseCreate):
+
     new_expense = expense.model_dump()
 
     new_expense["id"] = max(
@@ -63,8 +90,13 @@ def create_expense(expense: Expense):
     return new_expense
 
 
-@app.get("/expenses/{expense_id}")
+# -------------------------
+# Get Single Expense
+# -------------------------
+
+@app.get("/expenses/{expense_id}", response_model=ExpenseResponse)
 def get_expense(expense_id: int):
+
     for expense in expenses:
         if expense["id"] == expense_id:
             return expense
@@ -75,12 +107,20 @@ def get_expense(expense_id: int):
     )
 
 
+# -------------------------
+# Delete Expense
+# -------------------------
+
 @app.delete("/expenses/{expense_id}")
 def delete_expense(expense_id: int):
+
     for expense in expenses:
         if expense["id"] == expense_id:
             expenses.remove(expense)
-            return {"message": "Expense deleted successfully"}
+
+            return {
+                "message": "Expense deleted successfully"
+            }
 
     raise HTTPException(
         status_code=404,
@@ -88,10 +128,20 @@ def delete_expense(expense_id: int):
     )
 
 
-@app.put("/expenses/{expense_id}")
-def update_expense(expense_id: int, updated_expense: Expense):
+# -------------------------
+# Update Expense
+# -------------------------
+
+@app.put("/expenses/{expense_id}", response_model=ExpenseResponse)
+def update_expense(
+    expense_id: int,
+    updated_expense: ExpenseCreate
+):
+
     for expense in expenses:
+
         if expense["id"] == expense_id:
+
             expense["title"] = updated_expense.title
             expense["amount"] = updated_expense.amount
             expense["category"] = updated_expense.category

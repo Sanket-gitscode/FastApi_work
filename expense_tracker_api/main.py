@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel , Field
 
 from data import expenses
 
@@ -8,19 +8,45 @@ app = FastAPI()
 
 
 class Expense(BaseModel):
-    title: str
-    amount: float
-    category: str
+    title: str    = Field(min_length= 3)
+    amount: float = Field(gt = 0)
+    category: str = Field(min_length= 3)
 
 
 @app.get("/")
 def home():
     return {"message": "Expense Tracker API is running!"}
 
-
 @app.get("/expenses")
-def get_expenses():
-    return expenses
+def get_expenses(
+    category: str | None = None,
+    min_amount: float | None = None,
+    max_amount: float | None = None
+):
+    filtered_expenses = expenses
+
+    if category is not None:
+        filtered_expenses = [
+            expense
+            for expense in filtered_expenses
+            if expense["category"] == category
+        ]
+
+    if min_amount is not None:
+        filtered_expenses = [
+            expense
+            for expense in filtered_expenses
+            if expense["amount"] >= min_amount
+        ]
+
+    if max_amount is not None:
+        filtered_expenses = [
+            expense
+            for expense in filtered_expenses
+            if expense["amount"] <= max_amount
+        ]
+
+    return filtered_expenses
 
 
 @app.post("/expenses")

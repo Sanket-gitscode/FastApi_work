@@ -13,3 +13,12 @@ expenses = [
     }
 ]
 
+ids = [1, 2]
+
+def d(array):
+    for ele in array:
+        for expense in expenses:
+            if expense["id"] == ele:
+                print(expense)
+
+d(ids)

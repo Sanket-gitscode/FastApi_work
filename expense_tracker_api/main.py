@@ -1,7 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from data import expenses
+from database import Base, engine, SessionLocal
+from models import Expense
+
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 
 app = FastAPI()
@@ -11,14 +16,14 @@ app = FastAPI()
 # Pydantic Models
 # -------------------------
 
-# Data that the client sends to create/update an expense
+# Data sent by the client when creating/updating an expense
 class ExpenseCreate(BaseModel):
     title: str = Field(min_length=3)
     amount: float = Field(gt=0)
     category: str = Field(min_length=3)
 
 
-# Data that our API sends back to the client
+# Data returned by the API
 class ExpenseResponse(BaseModel):
     id: int
     title: str
@@ -32,7 +37,9 @@ class ExpenseResponse(BaseModel):
 
 @app.get("/")
 def home():
-    return {"message": "Expense Tracker API is running!"}
+    return {
+        "message": "Expense Tracker API is running!"
+    }
 
 
 # -------------------------
@@ -45,30 +52,38 @@ def get_expenses(
     min_amount: float | None = None,
     max_amount: float | None = None
 ):
-    filtered_expenses = expenses
 
+    db = SessionLocal()
+
+    expenses = db.query(Expense).all()
+
+    db.close()
+
+    # Apply category filter
     if category is not None:
-        filtered_expenses = [
+        expenses = [
             expense
-            for expense in filtered_expenses
-            if expense["category"] == category
+            for expense in expenses
+            if expense.category == category
         ]
 
+    # Apply minimum amount filter
     if min_amount is not None:
-        filtered_expenses = [
+        expenses = [
             expense
-            for expense in filtered_expenses
-            if expense["amount"] >= min_amount
+            for expense in expenses
+            if expense.amount >= min_amount
         ]
 
+    # Apply maximum amount filter
     if max_amount is not None:
-        filtered_expenses = [
+        expenses = [
             expense
-            for expense in filtered_expenses
-            if expense["amount"] <= max_amount
+            for expense in expenses
+            if expense.amount <= max_amount
         ]
 
-    return filtered_expenses
+    return expenses
 
 
 # -------------------------
@@ -78,14 +93,19 @@ def get_expenses(
 @app.post("/expenses", response_model=ExpenseResponse)
 def create_expense(expense: ExpenseCreate):
 
-    new_expense = expense.model_dump()
+    db = SessionLocal()
 
-    new_expense["id"] = max(
-        [expense["id"] for expense in expenses],
-        default=0
-    ) + 1
+    new_expense = Expense(
+        title=expense.title,
+        amount=expense.amount,
+        category=expense.category
+    )
 
-    expenses.append(new_expense)
+    db.add(new_expense)
+    db.commit()
+    db.refresh(new_expense)
+
+    db.close()
 
     return new_expense
 
@@ -97,35 +117,21 @@ def create_expense(expense: ExpenseCreate):
 @app.get("/expenses/{expense_id}", response_model=ExpenseResponse)
 def get_expense(expense_id: int):
 
-    for expense in expenses:
-        if expense["id"] == expense_id:
-            return expense
+    db = SessionLocal()
 
-    raise HTTPException(
-        status_code=404,
-        detail="Expense not found"
-    )
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id
+    ).first()
 
+    db.close()
 
-# -------------------------
-# Delete Expense
-# -------------------------
+    if expense is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Expense not found"
+        )
 
-@app.delete("/expenses/{expense_id}")
-def delete_expense(expense_id: int):
-
-    for expense in expenses:
-        if expense["id"] == expense_id:
-            expenses.remove(expense)
-
-            return {
-                "message": "Expense deleted successfully"
-            }
-
-    raise HTTPException(
-        status_code=404,
-        detail="Expense not found"
-    )
+    return expense
 
 
 # -------------------------
@@ -138,17 +144,58 @@ def update_expense(
     updated_expense: ExpenseCreate
 ):
 
-    for expense in expenses:
+    db = SessionLocal()
 
-        if expense["id"] == expense_id:
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id
+    ).first()
 
-            expense["title"] = updated_expense.title
-            expense["amount"] = updated_expense.amount
-            expense["category"] = updated_expense.category
+    if expense is None:
+        db.close()
 
-            return expense
+        raise HTTPException(
+            status_code=404,
+            detail="Expense not found"
+        )
 
-    raise HTTPException(
-        status_code=404,
-        detail="Expense not found"
-    )
+    expense.title = updated_expense.title
+    expense.amount = updated_expense.amount
+    expense.category = updated_expense.category
+
+    db.commit()
+    db.refresh(expense)
+
+    db.close()
+
+    return expense
+
+
+# -------------------------
+# Delete Expense
+# -------------------------
+
+@app.delete("/expenses/{expense_id}")
+def delete_expense(expense_id: int):
+
+    db = SessionLocal()
+
+    expense = db.query(Expense).filter(
+        Expense.id == expense_id
+    ).first()
+
+    if expense is None:
+        db.close()
+
+        raise HTTPException(
+            status_code=404,
+            detail="Expense not found"
+        )
+
+    db.delete(expense)
+    db.commit()
+
+    db.close()
+
+    return {
+        "message": "Expense deleted successfully"
+    }
